@@ -124,6 +124,8 @@ A `DOOR_CLOSE_TIMEOUT` from `BATCH_DONE` enters `FAULT` and leaves the stored ba
 
 The cutter runs while the plunger is in the center command that followed the forming pulse. The forming retract does not run between the pulse and the cutter. If the forming-retract time is greater than 0, the plunger retracts after the piece is counted, before the next pulse or before batch done.
 
+The client sheet shows a shutter and does not show the spring-return valve. See [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md).
+
 | State | Entry | Actions | Timer | Exit | Timeout | Local fault |
 | --- | --- | --- | --- | --- | --- | --- |
 | `FORM_PLUNGE` | Confirm, or another cycle | Plunger extend on. | Forming pulse | Deadline goes to `FORM_PLUNGE_CENTER`. | Normal completion. Mass is not confirmed. | Global only. |
