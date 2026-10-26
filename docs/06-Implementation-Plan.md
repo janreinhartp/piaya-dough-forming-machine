@@ -16,6 +16,7 @@ The design of record is:
 - [03-System-Architecture.md](03-System-Architecture.md)
 - [04-Hardware-Design.md](04-Hardware-Design.md)
 - [05-Software-Design.md](05-Software-Design.md)
+- [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md)
 
 ## 1. How to record a phase
 
@@ -88,7 +89,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 | Deliverable | `components/machine` and `components/field_io` against a fake expander. Host tests from software design section 10 pass. |
 | Depends on | Phase 4's fake bus. Does not need the panel. |
 | Test | Run the host tests. Inspect a trace of transfer and forming order. |
-| Acceptance | Tests cover transfer order, forming order, the count point, STOP, fault, emergency stop, exclusion, and reboot. A failing test blocks phase 7. |
+| Acceptance | Tests cover transfer order, forming order, the count point, STOP including a STOP pin that is not low, fault, emergency stop, `OUTPUT_EXCLUSION`, maintenance mixer jog with the door switch clear, calibration that does not change the production count, and reboot. A failing test blocks phase 7. |
 | Risk | Skipping the count-point test is how a partial cycle gets counted. |
 
 ### Phase 7 — Settings, recipes, NVS
@@ -148,7 +149,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 | Deliverable | Forming cycle, piece count, and the scale workflow. |
 | Depends on | Phase 11. |
 | Test | One cycle. Confirm the count increases only after the up timer. Stop during the up timer and confirm the count does not increase. Weigh a sample, enter it, cancel, and confirm the pulse is unchanged. Confirm, reboot, and confirm the pulse was stored. |
-| Acceptance | Two nozzles add two pieces per counted cycle. The theoretical yield is labeled estimate. The calibration hint is not applied by itself. |
+| Acceptance | Two nozzles add two pieces per counted production cycle. The theoretical yield is labeled estimate. The calibration hint is not applied by itself. A calibration confirm stores the pulse and does not create a production batch. |
 | Risk | Equal pulses will not make equal mass. Do not tighten a timer and call the weight solved. |
 
 ### Phase 13 — Faults, restart, and interlocks
@@ -209,24 +210,38 @@ Use this list in phase 14, and earlier where a line says so.
 - Screen never labels a timer completion as a confirmed cylinder position, except the door-closed input.
 - VFD terminal names written on the drawing match the manuals filed in phase 1.
 
-## 5. Decisions still required
+## 5. Decisions accepted in the alignment revision
 
-Writing these documents does not close the hardware decisions. Firmware and purchasing wait on the following.
+These readings are accepted. The client sheets do not show them. Detail is in [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md).
 
-1. Treat this document set as the design of record, and leave **Open** items blank rather than guessed.
-2. Confirm the controller in hand is touch SKU 31726, 1024 × 600.
-3. Provide both VFD manuals before any terminal drawing is treated as buildable.
-4. Provide cylinder bore, stroke, orientation, and whether any axis falls when air is lost.
-5. Accept or reject P15 as the normally closed drive-fault input.
-6. Accept active-low PCF8575 outputs, 3.3 V power, and address `0x20`.
-7. Accept the GPIO6 output-enable watchdog as mandatory equipment protection for this prototype.
-8. Keep the cutter as a detented 5/2 double solenoid, or change it to spring-return retract and free P7.
-9. Accept operator confirmation as the only barrel-ready check.
-10. Accept separate buttons: a hardwired safety-relay reset, and a firmware alarm RESET.
-11. Accept English only, eight recipes, no live edits during a batch, and no VFD speed control in this prototype.
-12. Confirm food-adjacent air: filter and regulator, no lubricator, and state whether the compressor is oil-free.
-13. Confirm that fixed guards will exist before any dough trial in which the mixer runs with the door open.
-14. Firmware implementation remains a separate approval after phase 1 fills the blocking facts. This documentation pass does not create that firmware.
+1. Documents 01 through 06 remain the control design of record. Document 07 is the alignment record.
+2. The controller target remains touch SKU 31726. Phase 1 still confirms the board in hand.
+3. P15 is the series drive-fault input, low when both drives are healthy.
+4. PCF8575 outputs are active low, at 3.3 V, address `0x20`. Fail-safe input sense is compiled. The editable input mask is START and firmware RESET only.
+5. The GPIO6 watchdog is mandatory equipment protection. Part number and timeout stay blank.
+6. The cutter valve is 5/2 spring-return to retract. P7 is written inactive.
+7. Barrel ready is an operator confirmation.
+8. The safety-relay reset and firmware RESET stay separate.
+9. English only, eight recipes, no live process edits, and no drive speed command.
+10. Air preparation has a lockable shutoff, filter, regulator, gauge, and lockable exhaust, and no lubricator.
+11. Fixed guards are required before a transfer mix with the door switch clear.
+12. A partial-open dough trial requires a mechanical stop. The distance stays blank unless document 07 quotes a callout.
+13. An axis that a mechanical review says can fall needs a restraint before operation. This plan does not assert which axes fall.
+14. Firmware remains a separate approval. The alignment revision creates no firmware.
+
+## 5.1 Facts still blank
+
+Phase 1 fills these from the board, the manuals, and the machine. A blank still blocks purchase and wiring of that item.
+
+- Variable-frequency-drive manufacturer, model, manual, terminal names, sink or source, and fault-contact rating
+- Pneumatic bore, stroke, load, and required stroke time for the door, plunger, cutter, and flattener
+- Operating air pressure, valve flow, port size, coil current, supply current, and fuse rating
+- PCF8575 module schematic, onboard helper-chip identity, backlight register, and GPIO6 header voltage
+- Watchdog part number and timeout
+- Oil-free compressor status
+- Which axes fall when air or electrical power is lost
+- Enclosure, washdown, and ambient temperature
+- Any client callout marked `unreadable` in document 07
 
 ## 6. Risks that span phases
 
