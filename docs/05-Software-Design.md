@@ -46,17 +46,29 @@ The driver does not know valve names.
 
 ### 2.2 Field I/O
 
-Logical outputs are an enum: mixer run, conveyor run, door open, door close, plunger extend, plunger retract, cutter extend, cutter retract, flattener. Logical inputs match P9–P15.
+Logical outputs are an enum: mixer run, conveyor run, door open, door close, plunger extend, plunger retract, cutter extend, flattener. There is no cutter-retract coil. Logical inputs match P9–P15.
 
 `field_io_apply` builds the 16-bit image:
 
 1. Start from inactive.
 2. Set bits requested by the machine task.
-3. If a forbidden pair is both set, clear both and return an exclusion error. Pairs are door open with door close, plunger extend with retract, and cutter extend with retract.
+3. If a forbidden pair is both set, clear both and return an exclusion error. Pairs are door open with door close, and plunger extend with retract. An automatic request that hits this rule causes `OUTPUT_EXCLUSION` and `FAULT`. A maintenance second press is rejected without an alarm.
 4. If the safety monitor, air, drive fault, or link health fails, force every output inactive.
-5. Apply the engineering polarity mask. Default: active output writes 0.
+5. Apply the engineering output polarity mask, and the input polarity mask only for START and firmware RESET. Default: an active output writes 0. Door, safety monitor, air, STOP, and drive fault use the named-condition table below and are not masked by a setting.
 6. Force input bit positions to 1.
 7. Hand the image to the I/O task.
+
+Named condition true when the pin is low:
+
+| Input | Named condition |
+| --- | --- |
+| Door closed | Door is closed |
+| Safety-relay monitor | Relay is in the run state |
+| Air pressure | Pressure is OK |
+| START | Button is pressed |
+| STOP | Button is released and the wire is intact. Stop is requested when this condition is false |
+| Firmware RESET | Button is pressed |
+| Drive fault | Both drives report healthy. A drive fault is present when this condition is false |
 
 Debounce counters live here, one per input, using the stored debounce time. The machine task sees the debounced levels.
 
@@ -80,10 +92,12 @@ Fault column means the additional local fault. Global rules in section 1 still a
 | `STOPPED` | `STOPPING` finished its write | Inactive. | None | Firmware RESET goes to `IDLE`. | Not used | None beyond global rules. |
 | `FAULT` | A process fault | Inactive. Record code and previous state. | None | Cause clear and firmware RESET goes to `IDLE`. Cause still present ignores RESET. | Not used | `ESTOP` still preempts. |
 | `ESTOP` | Monitor unhealthy | Inactive. Record `ESTOP_ACTIVE`. | None | Monitor healthy and firmware RESET goes to `IDLE`. RESET while the monitor is still unhealthy is ignored. | Not used | Firmware cannot reset the safety relay. |
-| `MAINT` | PIN accepted from `IDLE` | Inactive until a jog press. Each press is one logical output, edge-triggered, and is dropped on release. | While held, the output stays requested. No motion timer. | Exit command with all presses released and inactive image written goes to `IDLE`. | Not used | A second coil of an excluded pair is rejected. Mixer jog with the door open requires the on-screen guard acknowledgement for that entry into maintenance. |
+| `MAINT` | PIN accepted from `IDLE` | Inactive until a jog press. Each press is one logical output, edge-triggered, and is dropped on release. | While held, the output stays requested. No motion timer. | Exit command with all presses released and inactive image written goes to `IDLE`. | Not used | A second coil of an excluded pair is rejected. Mixer jog while the door switch is clear is rejected and the mixer run bit stays off. |
 | `DOOR_CLOSE` | Close command from `IDLE` or `BATCH_DONE` | Door close coil on. Other outputs off. | Door-close time plus margin | Door switch becomes true goes to the caller state with coils off. | `DOOR_CLOSE_TIMEOUT`, inactive image, `FAULT` | Door switch never true within the deadline. |
 
 `BATCH_DONE` is listed with the forming states below. Close-door from `BATCH_DONE` returns to `BATCH_DONE` if the switch becomes true.
+
+A `DOOR_CLOSE_TIMEOUT` from `BATCH_DONE` enters `FAULT` and leaves the stored batch record in place. Firmware RESET then goes to `IDLE`. The finished batch is not resumed and its record is not deleted.
 
 ### 3.2 Mixing and transfer
 
@@ -116,7 +130,7 @@ The cutter runs while the plunger is in the center command that followed the for
 | `FORM_PLUNGE_CENTER` | Pulse done | Both plunger coils off. | Until the write succeeds | Success goes to `FORM_CUT_EXTEND`. | I2C fault on failure. | Global only. |
 | `FORM_CUT_EXTEND` | Plunger centered | Cutter extend on. | Cutter extend time | Deadline goes to `FORM_CUT_DWELL` if dwell is greater than 0, otherwise `FORM_CUT_RETRACT`. | Normal completion. Blade position is not confirmed. | Global only. |
 | `FORM_CUT_DWELL` | Dwell greater than 0 | Cutter extend remains on. | Cutter dwell | Deadline goes to `FORM_CUT_RETRACT`. | Normal completion. | Global only. |
-| `FORM_CUT_RETRACT` | Cut time done | Cutter extend off, cutter retract on. | Cutter retract time | Deadline turns the cutter coils off, then `FORM_CONVEY`. | Normal completion. | Global only. |
+| `FORM_CUT_RETRACT` | Cut time done | Cutter extend off. No retract coil. | Cutter retract time | Deadline turns the cutter coils off, then `FORM_CONVEY`. | Normal completion. | Global only. |
 | `FORM_CONVEY` | Cutter command finished | Conveyor run on. | Conveyor time | Deadline removes conveyor run and goes to `FORM_FLAT_DOWN`. | Normal completion. Distance is not measured. | Global only. |
 | `FORM_FLAT_DOWN` | Conveyor stopped | Flattener solenoid on. | Down time | Deadline goes to `FORM_FLAT_DWELL`. | Normal completion. Direction depends on the low-pressure plumbing check. | Global only. |
 | `FORM_FLAT_DWELL` | Down timer done | Solenoid remains on. | Dwell time. A stored 0 completes on the next poll. | Deadline goes to `FORM_FLAT_UP`. | Normal completion. | Global only. |
@@ -126,22 +140,24 @@ The cutter runs while the plunger is in the center command that followed the for
 | `BATCH_DONE` | Target met and any end retract finished | Inactive. Store the batch record. Show completed and remaining. | Waits | Acknowledge goes to `IDLE` and clears the interrupted-batch flag. Close-door may run and return here. | No automatic next batch. | Global only. |
 | `STOPPING` | STOP from a production state | Inactive image. Do not add a piece unless `FORM_COUNT` already ran. | Until the inactive write succeeds | Success goes to `STOPPED`. | I2C failure goes to `FAULT` as well as the stop. | None beyond that write. |
 
+When a calibration run is active, `FORM_FLAT_UP` does not enter `FORM_COUNT`. Its deadline increments the sample counter and returns to `FORM_PLUNGE` until the sample count is met, then returns to `MAINT` with outputs inactive.
+
 Remaining pieces on screen is target minus completed, floored at zero. A stop during `FORM_FLAT_UP` does not count. A stop during `FORM_COUNT` is too late to undo the increment if the add already happened.
 
 ## 4. Output interlock matrix
 
-Rows are requests. "Auto" means only in the listed states. Maintenance may request the output only while `MAINT` is active, the matching button is held, and the common permissives pass. A maintenance mixer run with the door switch clear also needs the guard acknowledgement captured for that maintenance entry.
+Rows are requests. "Auto" means only in the listed states. Maintenance may request the output only while `MAINT` is active, the matching button is held, and the common permissives pass. A maintenance mixer run also requires the door-closed switch on every poll.
 
 | Request | Automatic states | Blocked when |
 | --- | --- | --- |
-| Mixer run | `MIX_RUN` with door closed. `XFER_MIX_1` and `XFER_MIX_2` without the door switch. | Any failed common permissive, or door clear inside `MIX_RUN`. |
+| Mixer run | `MIX_RUN` with door closed. `XFER_MIX_1` and `XFER_MIX_2` without the door switch. | Any failed common permissive, door clear inside `MIX_RUN`, or door clear during a maintenance jog. |
 | Conveyor run | `FORM_CONVEY` | Failed common permissive. |
 | Door open | `XFER_DOOR_PARTIAL`, `XFER_DOOR_FULL` | Door close also requested. Failed common permissive. |
 | Door close | `DOOR_CLOSE` | Door open also requested. Failed common permissive. |
 | Plunger extend | `XFER_PUSH_1`, `XFER_PUSH_2`, `FORM_PLUNGE` | Retract also requested. Failed common permissive. |
 | Plunger retract | `XFER_RETRACT_1`, `XFER_RETRACT_2`, `FORM_RETRACT` | Extend also requested. Failed common permissive. |
 | Cutter extend | `FORM_CUT_EXTEND`, `FORM_CUT_DWELL` | Retract also requested. Failed common permissive. |
-| Cutter retract | `FORM_CUT_RETRACT` | Extend also requested. Failed common permissive. |
+| Cutter extend off | `FORM_CUT_RETRACT` | Failed common permissive. P7 stays inactive. |
 | Flattener | `FORM_FLAT_DOWN`, `FORM_FLAT_DWELL` | Failed common permissive. Off in `FORM_FLAT_UP` and everywhere else. |
 
 Common permissives are safety monitor in the run state, air OK, drives healthy, and I/O link healthy. Hardware coil cross-interlocks remain in force when this table is wrong. There is no software output for the safety relay.
@@ -176,7 +192,7 @@ flowchart TD
 | Calibration | Pulse, sample count, total weight, computed average, hint, Confirm and Cancel. |
 | Batch statistics | Counts, remaining, theoretical piece estimate and cycle estimate labeled estimate, rejected-piece adjustment. |
 | Maintenance | Command counters labeled as commands, reminder thresholds, log level. |
-| Engineering | Polarity masks, limits, commissioned switch, PIN change. Reached only through the engineering PIN. |
+| Engineering | Output polarity mask, START and firmware RESET input polarity, limits, commissioned switch, PIN change. Door, air, safety monitor, STOP, and drive fault are compiled. Reached only through the engineering PIN. |
 
 The keypad is a button matrix plus a display of the field name, unit, and limits. Destructive confirms are modal. Unsaved edits prompt before leaving the page.
 
@@ -205,10 +221,10 @@ The partition recommendation is 64 KB for NVS, recorded in the technical require
 
 ## 7. Calibration workflow
 
-Implemented on the calibration screen and executed by the machine task as a maintenance sequence that reuses `FORM_PLUNGE` through `FORM_FLAT_UP` for the sample count, without adding those samples to the production batch target. Sample pieces are not written as a completed production batch.
+Implemented on the calibration screen and executed by the machine task as a maintenance sequence. The run uses `FORM_PLUNGE` through `FORM_FLAT_UP` for the sample count. It does not enter `FORM_COUNT`. Sample pieces are not written as a completed production batch, and the interrupted-batch flag is not set.
 
 1. Maintenance mode, recipe selected, pulse inside the engineering limits.
-2. Operator starts the sample run. The machine produces the sample count and stops.
+2. Operator starts the sample run. Each flattener-up completion increments the sample counter only. The machine stops in maintenance when the sample count is met.
 3. Operator weighs the pieces externally and enters count and total grams.
 4. Average = total grams / count. Difference = average minus target grams.
 5. Hint = current pulse plus or minus 10 percent of the current pulse, toward a smaller pulse when the average is high, then clamped to the engineering minimum and maximum.
@@ -232,6 +248,7 @@ Theoretical estimates on the batch screen use floor(15000 / target grams) and th
 | `NVS_CORRUPT` | Stored settings were replaced with factory data. | Commission the machine again. The commissioned flag is clear. |
 | `NVS_SAVE_FAIL` | The last save did not complete. | The previous saved values remain. Retry the save. |
 | `SETTINGS_REJECTED` | That value is outside its limits. | Read the minimum and maximum on the row. |
+| `OUTPUT_EXCLUSION` | Both coils of a pair were requested in automatic mode. | The outputs were forced off. Press firmware RESET. Start a new batch only after the request that set both coils is corrected. |
 | `UNCOMMISSIONED` | This machine has not been commissioned. | Engineering must save trial times and set commissioned. |
 
 History records store the code, the state enum name, and the message. The ring drops the oldest of 32.
@@ -254,5 +271,10 @@ Host tests, later implemented under `test/`, must fail before the production log
 - Reboot from a fake mid-batch flag enters `IDLE` and does not enter `FORM_PLUNGE`.
 - Calibration hint moves 10 percent toward the target and does not write until confirm.
 - A corrupt blob loads factory data and clears commissioned.
+- A maintenance mixer request with the door switch clear leaves the mixer run bit off.
+- A calibration run of the configured sample count leaves the production piece count and the interrupted-batch flag unchanged.
+- A STOP pin that is not low is a stop request.
+- An automatic request for both door coils enters `FAULT` with `OUTPUT_EXCLUSION` and writes the inactive image.
+- A safety-monitor loss from a forming state enters `ESTOP`.
 
 Hardware tests are in [06-Implementation-Plan.md](06-Implementation-Plan.md).
