@@ -30,7 +30,7 @@ Read [docs/04-Hardware-Design.md](docs/04-Hardware-Design.md) before wiring anyt
 - Field I/O: one PCF8575 at I2C address `0x20` on the board header, powered at 3.3 V, outputs active low. Address `0x24` is already used on the board.
 - Motors: mixer and conveyor variable-frequency drives, run by isolated dry contacts. Speed stays on the drive keypad.
 - Pneumatics: 5/3 closed-center valves for the door and plunger, a 5/2 spring-return valve for the cutter with the spring port plumbed to retract, and a 5/2 spring-return valve for the flattener. Valve size is not selected yet. P7 is unused.
-- Safety: hardwired emergency-stop relay in series with field power, plus a recommended GPIO6 watchdog that drops field power if the controller stops running.
+- Safety: hardwired emergency-stop relay in series with field power, plus a GPIO6 watchdog that is mandatory equipment protection for this prototype. Its part number and timeout stay blank. It drops field power if the controller stops running.
 
 Confirm the board in hand before ordering interface parts. The non-touch SKU 31727 is the wrong board.
 

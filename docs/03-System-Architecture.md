@@ -196,13 +196,13 @@ HMI callbacks stop at the command queue. They do not form bit masks.
 
 The full matrix is in [05-Software-Design.md](05-Software-Design.md). The architectural rules are:
 
-- Door open and door close cannot both be active. The same rule binds plunger extend and retract, and cutter extend and retract.
+- Door open and door close cannot both be active. The same rule binds plunger extend and retract. The cutter has one extend coil. P7 is unused and is written inactive.
 - Mixer run during mix requires the door-closed switch and the common permissives.
 - Mixer run during the two transfer-mix steps requires the common permissives and does not require the door switch.
 - Conveyor run is allowed in the conveyor step and as a maintenance jog.
 - Flattener, cutter, plunger, and door commands are allowed only in their own steps or as maintenance jogs.
 - No field output is requested while the safety monitor, air input, drive-fault input, or I/O link is failed.
-- Hardware cross-interlocks on the door, plunger, and cutter coil pairs remain even if the software image is wrong. See the hardware document.
+- Hardware cross-interlocks on the door pair and the plunger pair remain even if the software image is wrong. See the hardware document.
 - The safety relay is not represented as a software output.
 
 ## 9. What this architecture leaves unresolved

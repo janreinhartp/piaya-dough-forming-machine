@@ -66,8 +66,7 @@ HMI orientation is landscape 1024 × 600. **Open:** whether the enclosure mounts
 - GPIO6 header voltage and whether anything else is already on that net.
 - Door-switch contact arrangement. The required interface only pulls an expander pin low.
 - Whether the flattener or the door falls when air or electrical power is lost.
-- Partial-open stop: angle or millimetres, if a stop is fitted.
-- Whether the cutter is allowed to stay extended after power loss.
+- Partial-open stop distance: angle or millimetres. The stop itself is required before a dough trial uses the partial-open command. The distance stays blank.
 - Enclosure, guards, washdown, and ambient temperature versus the board's published 0–65 °C.
 - Coil current and required valve flow. Supply and valve sizing stay blank until those exist.
 - Compressor: oil-free or not.
@@ -128,7 +127,7 @@ GPIO6 is not in this map. It kicks the output-enable watchdog described in secti
 
 Each PCF8575 output sinks only an optocoupler LED. The optocoupler transistor switches a 24 V relay or MOSFET that carries the real load. A DC coil gets a flyback diode at the coil. The LED resistor is calculated after the optocoupler datasheet provides Vf. Target current is 2–5 mA.
 
-Door open and door close each pass through a hardware cross-interlock: a normally closed contact of the opposite contactor or an equivalent interlock relay, so both coils cannot be powered if one driver sticks on. The plunger pair is interlocked the same way. The cutter pair is interlocked the same way while both coils exist.
+Door open and door close each pass through a hardware cross-interlock: a normally closed contact of the opposite contactor or an equivalent interlock relay, so both coils cannot be powered if one driver sticks on. The plunger pair is interlocked the same way. The cutter has one coil, on P6. P7 is unused and is written inactive.
 
 VFD run outputs are separate dry contacts. They do not share a relay with a solenoid.
 
