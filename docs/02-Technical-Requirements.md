@@ -86,7 +86,7 @@ An operator may edit these. VFD frequency is not a field. Drive speed stays on t
 | Flattener dwell | ms | s, 0.1 | 0–30.0 s | Held down |
 | Flattener up | ms | s, 0.1 | 0.1–30.0 s | Piece count increments after this timer |
 | Target piece weight | g | g | 10–200 g | Planning target 50 g is **Assumption** |
-| Nozzle count | count | count | 1–2 | Default 2 is **Assumption** |
+| Nozzle count | count | count | 1–2 | Default 2 matches two openings on the client shutter-cutter sheet. **Client drawing.** |
 | Target pieces | count | count | 1–2000 | Operator batch size. The theoretical yield is a separate estimate |
 
 Initial limits are widened or tightened only from the engineering page, and only inside compiled absolute caps: 0–3600 s for mix-class times and 0–120 s for motion-class times. Those caps are not operator settings.
@@ -112,12 +112,12 @@ Screen timeout, language selection, and a choice of startup screen are excluded.
 Protected by the engineering PIN:
 
 - Output polarity mask. Default is active low on every output, matching the PCF8575 power-on high.
-- Input polarity mask. Default is active low, as wired in [04-Hardware-Design.md](04-Hardware-Design.md).
+- Input polarity mask for START and firmware RESET only. Factory value is active low, matching the named-condition table in section 4. Door closed, safety-relay monitor, air pressure, STOP, and drive fault are compiled from that table and are not settings.
 - The timer and debounce limits in section 3.2.
 - Commissioned flag.
 - Maintenance PIN and engineering PIN changes, each confirmed by entering the current PIN.
 
-GPIO numbers, the coil-exclusion pairs, the emergency-stop response, and the rule that a reboot does not resume a batch are compiled. They do not appear as settings.
+GPIO numbers, the coil-exclusion pairs, the emergency-stop response, and the rule that a reboot does not resume a batch are compiled. They do not appear as settings. The named conditions for the door, the safety monitor, air, STOP, and the drive-fault chain are compiled with those rules.
 
 ### 3.4 When edits take effect
 
@@ -138,9 +138,21 @@ The detailed table is in [05-Software-Design.md](05-Software-Design.md). These r
 - Boot reads configuration, writes outputs inactive, and enters idle unless the safety monitor is unhealthy. An interrupted-batch flag is displayed and cleared. The sequence is not continued.
 - Maintenance is entered only from idle, and only with the maintenance PIN. Exit is allowed only when jog requests are released and the inactive image has been written.
 
+Named condition true when the pin is low:
+
+| Input | Named condition |
+| --- | --- |
+| Door closed | Door is closed |
+| Safety-relay monitor | Relay is in the run state |
+| Air pressure | Pressure is OK |
+| START | Button is pressed |
+| STOP | Button is released and the wire is intact. Stop is requested when this condition is false |
+| Firmware RESET | Button is pressed |
+| Drive fault | Both drives report healthy. A drive fault is present when this condition is false |
+
 ## 5. Human-interface requirements
 
-Screens: Dashboard, Automatic, Recipes, Settings, Manual, I/O, Alarms, Calibration, Batch statistics, and Maintenance.
+Screens: Dashboard, Automatic, Recipes, Settings, Manual, I/O, Alarms, Calibration, Batch statistics, Maintenance, and Engineering. Engineering is reached only through the engineering PIN.
 
 The dashboard shows machine state, selected recipe, commanded motor and valve bits, measured inputs, batch progress, and the active alarm. Commanded bits and measured bits use different labels. Cylinder positions other than door closed are labeled as commanded or as timer elapsed.
 
@@ -177,6 +189,8 @@ Calibration steps:
 6. Suggested pulse = current pulse adjusted by 10 percent toward the target, then clamped to the engineering limits. If the average is above the target, the hint shortens the pulse. If it is below, the hint lengthens it.
 7. Store the pulse only after the operator confirms.
 
+A calibration run is entered from maintenance and carries a sample counter. Completing the flattener-up timer increments that counter and returns to the plunge state until the sample count is met, then returns to maintenance with outputs inactive. The run does not enter the production count state, does not change the production piece count, does not write the production checkpoint, and does not set the interrupted-batch flag.
+
 The 10 percent step is a review hint. It is not a model of dough mass. Sample count of 0 or a total weight of 0 is rejected.
 
 Completed cycles, completed pieces, rejected-piece adjustment, target, and remaining pieces are visible during the batch. Remaining = target pieces minus completed pieces, and is not shown below zero.
@@ -211,7 +225,7 @@ The alarm ring holds 32 records: code, originating state, and short text. Older 
 
 NVS size in the partition table is 64 KB. **Verified:** Espressif's programming guide recommends at least 12 KB for a usable NVS partition and ships a 24 KB default. **Recommendation:** 64 KB, to hold eight recipes and the alarm ring with spare space. This is not a requirement from the dough process.
 
-At each successful piece-count update the firmware may store the completed counts and an interrupted-batch flag. That checkpoint is the only mid-batch NVS write. It is not an output image and it is not a resume token.
+On every successful production piece-count update the diagnostics task writes the completed counts and the interrupted-batch flag. A failed write raises `NVS_SAVE_FAIL`, enters the fault state, and keeps the count in RAM. That checkpoint is the only mid-batch NVS write. It is not an output image and it is not a resume token.
 
 ## 9. Alarm requirements
 
@@ -229,6 +243,7 @@ Each alarm has a stable code, a plain-language message, the originating state, a
 | `NVS_CORRUPT` | Stored configuration could not be used |
 | `NVS_SAVE_FAIL` | A save did not complete |
 | `SETTINGS_REJECTED` | An edit was outside its limits |
+| `OUTPUT_EXCLUSION` | An automatic request set both coils of a pair. Outputs were forced inactive |
 | `UNCOMMISSIONED` | Commissioned flag is false. Standing banner. Start refused. Reset does not set the flag |
 
 `UNCOMMISSIONED` does not force the fault state, so first power-up is not trapped. The other codes latch until the cause is clear and firmware RESET is accepted. `ESTOP_ACTIVE` clears only after the safety monitor is healthy again and firmware RESET is accepted. Firmware RESET does not re-energize the safety relay.
@@ -247,3 +262,4 @@ Log state transitions, operator commands, recipe saves, batch completion, faults
 | Calibration by weight | Section 6 |
 | Persistence | Section 8 |
 | Implementation order | [06-Implementation-Plan.md](06-Implementation-Plan.md) |
+| Client drawing alignment | [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md) |
