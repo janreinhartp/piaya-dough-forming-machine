@@ -206,7 +206,7 @@ De-energizing a coil is not assumed to be a safe mechanical position. The motion
 
 | Event | Electrical result | Mechanical result with air still present | Mechanical result with air gone |
 | --- | --- | --- | --- |
-| Normal stop | Firmware opens both run contacts and writes every solenoid bit inactive. | Door and plunger 5/3 valves go to closed center and can drift. Flattener moves to the spring-plumbed end. A detented cutter stays in its last direction. | Cylinders drift with load. Firmware cannot finish a stroke. |
+| Normal stop | Firmware opens both run contacts and writes every solenoid bit inactive. | Door and plunger 5/3 valves go to closed center and can drift. Flattener moves to the spring-plumbed end. With air present, the cutter spool returns toward retract when the coil drops. | Cylinders drift with load. Firmware cannot finish a stroke. Loss of air does not prove the cutter blade moved. |
 | Emergency stop | Safety relay removes solenoid 24 V and the VFD enable or STO path. Firmware reports it. | Same valve result as coil power loss, and the motors lose their enable. | Same drift. The motors are without enable. |
 | Mains loss | Coils drop. Drives lose power. | Same as coil power loss until air also bleeds down. | Drift. On restore, drives must not auto-restart, the safety relay waits for its manual reset, and firmware boots to idle. |
 | Air loss | Pressure input faults the sequence and removes run commands. | Commands stop. Motion already in progress is not completed under control. | No commanded motion. |
