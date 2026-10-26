@@ -13,6 +13,7 @@ Labels:
 - **Assumption** — used for planning and still unconfirmed.
 - **Recommendation** — choice for this prototype.
 - **Open** — do not buy, size, or wire from a guess.
+- **Client drawing** — transcribed in [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md). A barrel diameter from that record is not a pneumatic bore, stroke, or valve flow.
 
 No prices are listed. No valve catalog numbers are listed. No safety-standard compliance is claimed for the machine.
 
@@ -103,7 +104,7 @@ Logical P0–P15 are the software names. TI names are the datasheet pins. Active
 | P4 | P04 | byte 0 bit 4 | Output | Plunger extend coil | Low |
 | P5 | P05 | byte 0 bit 5 | Output | Plunger retract coil | Low |
 | P6 | P06 | byte 0 bit 6 | Output | Cutter extend coil | Low |
-| P7 | P07 | byte 0 bit 7 | Output | Cutter retract coil | Low, if the detented valve is kept |
+| P7 | P07 | byte 0 bit 7 | Output | Unused | Written inactive |
 | P8 | P10 | byte 1 bit 0 | Output | Flattener solenoid | Low means the solenoid is energized. Down versus up is proved at low pressure. |
 | P9 | P11 | byte 1 bit 1 | Input | Door closed | Low means closed |
 | P10 | P12 | byte 1 bit 2 | Input | Safety-relay monitor | Low means the relay is in the run state |
@@ -113,9 +114,9 @@ Logical P0–P15 are the software names. TI names are the datasheet pins. Active
 | P14 | P16 | byte 1 bit 6 | Input | Firmware RESET | Low means pressed |
 | P15 | P17 | byte 1 bit 7 | Input | Drive fault chain | Low means both drives report healthy |
 
-P15 is a **Recommendation** that replaces an unused spare. Without it, a drive trip is invisible and the sequence continues. It remains an approval item in [06-Implementation-Plan.md](06-Implementation-Plan.md).
+P15 is accepted. Both drive fault contacts are in series, closed when both drives are healthy, and this pin is low in that state.
 
-If the cutter is changed to a single-solenoid spring-return valve, P7 becomes unused and is written inactive. That change is also an approval item. Until it is accepted, the map above stands.
+P7 is unused and is written inactive. The cutter valve is the spring-return valve in section 9.4.
 
 Shadow initial value is `0xFFFF`. Outputs off, inputs readable. Boot writes that image before any sequence request.
 
@@ -181,7 +182,7 @@ The controller cannot reset this relay and has no output that substitutes for it
 
 **VFD stop path, Open until the manuals arrive.** If the selected drive provides STO, the safety contact drives STO. If it does not, the safety contact drives the enable or coast-stop terminal the manual names. A contactor on the drive output is not added unless that manual allows it. A line-side contactor is specified only after the same reading. Drive parameters must disable automatic restart after power returns.
 
-**GPIO6 watchdog, Recommendation, required for this prototype unless explicitly rejected.** GPIO6 pulses an external timeout relay whose contact is in series with the safety relay's field-power contact. If the controller stops pulsing, field outputs lose 24 V even while the PCF8575 still holds a low. The watchdog contact is not in parallel with the safety relay. The watchdog part number and the timeout are **Open**. This function is equipment protection. It is not claimed as a safety channel.
+**GPIO6 watchdog, accepted equipment protection for this prototype.** GPIO6 pulses an external timeout relay whose contact is in series with the safety relay's field-power contact. If the controller stops pulsing, field outputs lose 24 V even while the PCF8575 still holds a low. The watchdog contact is not in parallel with the safety relay. The watchdog part number and the timeout are **Open**. This function is equipment protection. It is not claimed as a safety channel.
 
 ## 7. VFD interface
 
@@ -259,19 +260,19 @@ A forming pulse ends in center somewhere along the stroke. That position is not 
 
 ### 9.4 Cutter
 
-**Current design:** 5/2 double-solenoid, detented. Extend P6, retract P7. Both coils off leaves the spool where it last was, so the cutter stays driven in that direction while air remains.
+**Current design:** 5/2 single-solenoid, spring return. P6 energizes the solenoid. With air present, the spring-selected port is retract, so coil off drives the spool toward retract. P7 is unused and is written inactive. Loss of air does not prove the blade moved. The client sheet shows a shutter and does not show this valve. See [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md).
 
 ```mermaid
 flowchart LR
-  supply[Regulated_supply] --> valve[Cutter_5_2_detented]
+  supply[Regulated_supply] --> valve[Cutter_5_2_spring_return]
   extendCoil[Extend_coil_P6] --> valve
-  retractCoil[Retract_coil_P7] --> valve
+  spring[Spool_spring] --> valve
   valve --> capExtend[Cutter_extend_end]
   valve --> capRetract[Cutter_retract_end]
   valve --> exhaust[Silenced_exhaust]
 ```
 
-**Recommendation awaiting approval:** replace this with a 5/2 single-solenoid spring-return valve that retracts when the coil is off and air is present, and stop using P7. Keep the detented valve only if the mechanism must hold either end with the coils off. There is no cutter sensor. A jam or a short stroke is not detected.
+The detented 5/2 double-solenoid is the rejected alternative. There is no cutter sensor. A jam or a short stroke is not detected.
 
 ### 9.5 Flattener
 
@@ -307,7 +308,7 @@ Detection, the required response, and the extra hardware that would be stronger 
 | Drive fault | P15 opens | Fault and commands off. | There is still no proof the shaft was turning before the contact opened. | A motor sensor. Not in this prototype. |
 | Cutter obstruction | None | Timer still completes. | Called out on the manual screen. Accepted for the prototype. | A pressure or position switch. |
 | Invalid or corrupt settings | Validation and NVS checks | Refuse start. Factory data. Commissioned cleared on corruption. | The last good process times may be gone. | A second stored copy. Not in this prototype. |
-| Stop during motion | STOP input or screen | Stopping, then Stopped. No partial-cycle count. | Detented cutter may stay extended. | Spring-return cutter, if approved. |
+| Stop during motion | STOP input or screen | Stopping, then Stopped. No partial-cycle count. | With air present, the cutter spool returns toward retract when the coil drops. Loss of air does not prove the blade moved. | A cutter sensor. Not in this prototype. |
 | Reboot during a batch | Interrupted-batch flag | Show the last completed count. Do not continue. | Dough position is unknown to the controller. | Operator procedure only. |
 
 ## 11. Bill of materials
@@ -324,7 +325,7 @@ Ratings are only those read from a document. Blank sizing fields stay blank. Pri
 | Solenoid drivers | Opto plus 24 V MOSFET or relay | LED current 2–5 mA after Vf is known. Coil current **Open**. | Review the module schematic | Interposing relays |
 | VFD interface relays | Dry contact | Contact current **Open** until the VFD manual states the input current | VFD manual, not yet provided | — |
 | Door and plunger valves | 5/3 double-solenoid, spring center, closed center, 24 V DC coils | Flow and port size **Open** | Cylinder data, not yet provided | — |
-| Cutter valve | 5/2 double-solenoid, 24 V DC coils, unless the spring-return alternative is approved | Flow **Open** | Same | 5/2 single-solenoid spring-return to retract |
+| Cutter valve | 5/2 single-solenoid spring-return, 24 V DC coil, spring port plumbed to retract | Flow **Open** | [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md) records that the sheet shows a shutter | Detented 5/2 double-solenoid, rejected |
 | Flattener valve | 5/2 single-solenoid spring-return, 24 V DC coil | Flow **Open**. Rest-port plumbing proved on the bench. | Same | — |
 | Air preparation | Filter, regulator, gauge, lockable exhaust. No lubricator. | Pressure and port size **Open** | — | — |
 | Flow controls and fittings | Meter-out, matched to the tube size | Size **Open** | — | — |
