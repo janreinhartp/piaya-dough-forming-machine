@@ -130,7 +130,7 @@ The cutter runs while the plunger is in the center command that followed the for
 | `FORM_PLUNGE_CENTER` | Pulse done | Both plunger coils off. | Until the write succeeds | Success goes to `FORM_CUT_EXTEND`. | I2C fault on failure. | Global only. |
 | `FORM_CUT_EXTEND` | Plunger centered | Cutter extend on. | Cutter extend time | Deadline goes to `FORM_CUT_DWELL` if dwell is greater than 0, otherwise `FORM_CUT_RETRACT`. | Normal completion. Blade position is not confirmed. | Global only. |
 | `FORM_CUT_DWELL` | Dwell greater than 0 | Cutter extend remains on. | Cutter dwell | Deadline goes to `FORM_CUT_RETRACT`. | Normal completion. | Global only. |
-| `FORM_CUT_RETRACT` | Cut time done | Cutter extend off. No retract coil. | Cutter retract time | Deadline turns the cutter coils off, then `FORM_CONVEY`. | Normal completion. | Global only. |
+| `FORM_CUT_RETRACT` | Cut time done | Cutter extend off. No retract coil. | Cutter retract time | Deadline goes to `FORM_CONVEY`. The extend coil is already off. | Normal completion. | Global only. |
 | `FORM_CONVEY` | Cutter command finished | Conveyor run on. | Conveyor time | Deadline removes conveyor run and goes to `FORM_FLAT_DOWN`. | Normal completion. Distance is not measured. | Global only. |
 | `FORM_FLAT_DOWN` | Conveyor stopped | Flattener solenoid on. | Down time | Deadline goes to `FORM_FLAT_DWELL`. | Normal completion. Direction depends on the low-pressure plumbing check. | Global only. |
 | `FORM_FLAT_DWELL` | Down timer done | Solenoid remains on. | Dwell time. A stored 0 completes on the next poll. | Deadline goes to `FORM_FLAT_UP`. | Normal completion. | Global only. |
@@ -156,7 +156,7 @@ Rows are requests. "Auto" means only in the listed states. Maintenance may reque
 | Door close | `DOOR_CLOSE` | Door open also requested. Failed common permissive. |
 | Plunger extend | `XFER_PUSH_1`, `XFER_PUSH_2`, `FORM_PLUNGE` | Retract also requested. Failed common permissive. |
 | Plunger retract | `XFER_RETRACT_1`, `XFER_RETRACT_2`, `FORM_RETRACT` | Extend also requested. Failed common permissive. |
-| Cutter extend | `FORM_CUT_EXTEND`, `FORM_CUT_DWELL` | Retract also requested. Failed common permissive. |
+| Cutter extend | `FORM_CUT_EXTEND`, `FORM_CUT_DWELL` | Failed common permissive. P7 stays inactive. |
 | Cutter extend off | `FORM_CUT_RETRACT` | Failed common permissive. P7 stays inactive. |
 | Flattener | `FORM_FLAT_DOWN`, `FORM_FLAT_DWELL` | Failed common permissive. Off in `FORM_FLAT_UP` and everywhere else. |
 
@@ -186,7 +186,7 @@ flowchart TD
 | Automatic | Snapshot summary, Start, Stop, barrel-ready when the state is `XFER_CONFIRM`, acknowledge when the state is `BATCH_DONE`. Start is disabled while uncommissioned or faulted. |
 | Recipes | List of eight. Create, rename, duplicate, select, delete with confirmation, and a review page of every process field before start. |
 | Settings | One category list: mix, door, plunger, cutter, conveyor, flattener, batch. Each row is the editor from the technical requirements. Apply and Cancel. |
-| Manual | One button per logical output, held to jog. Banner that positions are not measured. Mixer jog shows the guard warning until accepted. |
+| Manual | One button per logical output, held to jog. Banner that positions are not measured. A mixer jog is refused while the door switch is clear. |
 | I/O | Last write, last read, decoded names, last I2C error. |
 | Alarms | Active alarm and the 32-entry history, with recovery text. |
 | Calibration | Pulse, sample count, total weight, computed average, hint, Confirm and Cancel. |
