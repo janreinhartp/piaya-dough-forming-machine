@@ -102,7 +102,7 @@ Queues and shared data:
 | Any task to alarms | Alarm queue | 16 messages |
 | Machine or HMI to NVS | NVS request queue | 4 messages, consumed only by diagnostics |
 
-Command messages are plain C structs: start, stop, reset, acknowledge batch, close door, jog press, jog release, save recipe, select recipe, calibration confirm. The machine task validates them against the current state. Invalid commands are ignored and, where [02-Technical-Requirements.md](02-Technical-Requirements.md) requires it, raise `SETTINGS_REJECTED`.
+Command messages are plain C structs: start, stop, reset, acknowledge batch, close door, jog press, jog release, save recipe, select recipe, calibration confirm. The machine task validates them against the current state. An illegal command for the current state is dropped and raises no alarm. A full HMI command queue rejects the new command on the screen and raises no alarm. An out-of-range edit raises `SETTINGS_REJECTED` and keeps the previous saved value.
 
 Boot order:
 
@@ -182,7 +182,7 @@ The theoretical yield is computed for display and is not stored as a guaranteed 
 One place computes the bits that will be written:
 
 1. The machine task emits a logical request for the current state or jog.
-2. `field_io` clears any opposing pair that is both true, and records a fault if that request came from automatic mode. Maintenance jogs never set both ends of a pair; the second press is rejected.
+2. `field_io` clears any opposing pair that is both true. An automatic request that set both ends records `OUTPUT_EXCLUSION` and the machine enters fault. A maintenance jog never sets both ends; the second press is rejected, the held coil stays, and no alarm is raised.
 3. Permissives force the request inactive when the safety monitor is down, air is low, a drive fault is present, or the I/O link has failed.
 4. Polarity converts logical active into the pin level. The default writes 0 for active and 1 for inactive.
 5. Input bits in the image are written as 1 so they can be read.
@@ -207,4 +207,4 @@ The full matrix is in [05-Software-Design.md](05-Software-Design.md). The archit
 
 ## 9. What this architecture leaves unresolved
 
-Phase 1 still has to identify the onboard helper chip before `board` can be frozen. The VFD terminal names are unresolved before the dry-contact wiring can be built. Cylinder data is unresolved before valves are sized. Those gaps are listed in [06-Implementation-Plan.md](06-Implementation-Plan.md) and are not filled by assumptions in this document.
+Phase 1 still has to identify the onboard helper chip before `board` can be frozen. The VFD terminal names are unresolved before the dry-contact wiring can be built. Cylinder data is unresolved before valves are sized. Those gaps are listed in [06-Implementation-Plan.md](06-Implementation-Plan.md) and are not filled by assumptions in this document. Client part names and transcribed geometry live in [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md).
