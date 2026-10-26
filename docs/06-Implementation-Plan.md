@@ -76,7 +76,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
-| Deliverable | One opto input and one opto output wired as in the hardware document, plus the series watchdog contact if that recommendation is accepted. |
+| Deliverable | One opto input and one opto output wired as in the hardware document, plus the series GPIO6 watchdog contact. Its part number and timeout stay blank. |
 | Depends on | Phase 4 and reviewed module schematics. |
 | Test | Power the expander. Confirm the load stays off. Command the output active and inactive. Open the input wire and confirm the fail-safe reading for that channel. Remove the GPIO6 kick, if fitted, and confirm field power drops. |
 | Acceptance | Power-up and controller reset leave the load off. A 24 V field wire never lands on a PCF8575 pin. |
@@ -194,7 +194,7 @@ Use this list in phase 14, and earlier where a line says so.
 - ESP-IDF version matches the demo pin.
 - PCF8575 is at `0x20`, at 3.3 V, and `0x24` is still only the onboard helper.
 - Boot with field power on leaves every solenoid and both run relays off.
-- GPIO6 watchdog, if accepted, drops field power when the kick stops.
+- GPIO6 watchdog drops field power when the kick stops. Its part number and timeout stay blank.
 - Emergency stop drops solenoid power and the drive enable or STO path while the controller is held in reset.
 - Releasing the emergency-stop button does not restore energy until the safety relay's own reset is pressed.
 - Firmware RESET does not move the safety relay.
