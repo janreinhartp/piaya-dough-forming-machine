@@ -2,7 +2,7 @@
 
 Prototype design for a touchscreen-controlled Piaya dough maker. The machine mixes about 15 kg of dough, transfers it into a forming barrel, and then forms, cuts, conveys, and flattens pieces. Cylinder motion is timed. The mixer door is the only actuator with a position switch.
 
-This repository currently holds the engineering documents. Firmware has not been started. There is no ESP-IDF project yet.
+This repository holds the engineering documents and the controller in `firmware/`. The ESP-IDF image builds on this PC. No board boot log has been recorded.
 
 ## Safety
 
@@ -36,17 +36,56 @@ Confirm the board in hand before ordering interface parts. The non-touch SKU 317
 
 ## Development environment
 
-When firmware work is approved, the toolchain is:
-
-- ESP-IDF, pinned to the version required by the official Waveshare demo. The expected family is 5.5.x.
-- CMake, C, FreeRTOS, and NVS, as provided by ESP-IDF.
-- LVGL 8.4, matching Waveshare example `13_lvgl_v8_demo`.
-- VS Code with the Espressif ESP-IDF extension.
+- ESP-IDF 5.5.x. The image in this tree was built with 5.5.4.
+- C, CMake, FreeRTOS, and NVS, as provided by ESP-IDF.
+- LVGL 8.4, taken from the local Waveshare sample at `docs/demo-firmware/Demo`. That directory is gitignored and must be present for `idf.py build`.
+- Host tests use the Visual Studio C compiler through `firmware/test/host/build.ps1`. They do not flash the board.
 
 Arduino and PlatformIO are not the project framework. Wi-Fi, Bluetooth, Modbus, and cloud services are out of scope.
 
-The first implementation phase is a hardware confirmation sheet, not a firmware tree. See [docs/06-Implementation-Plan.md](docs/06-Implementation-Plan.md).
+From `firmware`, after the ESP-IDF export script:
+
+```powershell
+idf.py build
+```
+
+The image is `firmware/build/piaya_dough_maker.bin`. Flash it only after the board in hand is confirmed as touch SKU 31726.
 
 ## Status
 
-Planning documents are in `docs/`. Client geometry and the mismatches with this control design are in [docs/07-Client-Drawing-Alignment.md](docs/07-Client-Drawing-Alignment.md). Drive manuals, pneumatic bore and stroke, coil current, air pressure, valve flow, and the helper-chip identity stay blank. The cutter valve in this control design is spring-return to retract. P15 is the drive-fault input. The GPIO6 watchdog is mandatory equipment protection, with its part number and timeout still blank.
+### Done
+
+- Documents 01 through 07, including the client-drawing alignment.
+- Host tests for the PCF8575 shadow, field I/O, recipe checks, calibration math, and the state machine in software design section 10.
+- ESP-IDF project `piaya_dough_maker`: Waveshare clock settings, a 64 KB NVS partition, the sample LCD, touch, and LVGL port, a GPIO6 kick, the machine and field-I/O tasks, and a dashboard with state, alarm, pieces, and Start, Stop, Reset, Barrel, and Ack.
+
+### Still to do
+
+Phase 1 is still open. These blanks block purchase and wiring of that item. The full list is in [docs/06-Implementation-Plan.md](docs/06-Implementation-Plan.md) section 5.1.
+
+- Confirm the board in hand, the helper-chip marking at address `0x24`, and both VFD manuals.
+- Pneumatic bore, stroke, coil current, air pressure, valve flow, fuse rating, oil-free compressor status, and which axes can fall.
+- Watchdog part number and timeout. The GPIO6 kick in firmware is only the software side.
+- Enclosure, washdown, ambient temperature, and any client callout marked unreadable in document 07.
+
+Bring-up on the board:
+
+- Flash the image and record a USB-UART boot log.
+- Show the panel, check touch, and leave it running for 30 minutes.
+- Scan I2C and confirm `0x24`, `0x5D`, and `0x20` with field power off.
+- Wire one opto input, one opto output, and the GPIO6 watchdog contact. Confirm a missing kick drops field power.
+
+Software still short of the design:
+
+- Save recipes, the commissioned flag, the batch record, and the alarm ring in NVS. The device still boots from the compiled factory values in RAM. Diagnostics only logs.
+- Add the remaining screens: Automatic, Recipes, Settings, Manual, I/O, Alarms, Calibration, Batch statistics, Maintenance, and Engineering. The dashboard still needs separate commanded and measured columns.
+- Keep output images out of NVS. Keep widget code off the PCF8575.
+
+On the machine, after the blanks above are filled:
+
+- Drive run contacts from the manuals, with no automatic restart after mains returns.
+- Stroke the door, plunger, cutter, and flattener one at a time at low pressure.
+- Run mix, transfer, forming, counting, and calibration on the machine. Guards are required before a transfer mix with the door switch clear.
+- Fill the fault-injection record, then run one supervised batch. Set commissioned only after the trial times replace the factory placeholders.
+
+The phase tests and the commissioning checklist are in [docs/06-Implementation-Plan.md](docs/06-Implementation-Plan.md).

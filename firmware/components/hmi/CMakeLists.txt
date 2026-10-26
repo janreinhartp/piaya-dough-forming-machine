@@ -1,0 +1,5 @@
+idf_component_register(
+    SRCS "hmi.c"
+    INCLUDE_DIRS "include"
+    REQUIRES freertos lvgl lvgl_port runtime
+)
