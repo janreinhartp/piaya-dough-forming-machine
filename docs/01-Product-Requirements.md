@@ -13,6 +13,7 @@ This document states what the prototype is for, who operates it, and what is ins
 - **Assumption** — used so the design can proceed, and still needs confirmation.
 - **Recommendation** — engineering choice, not a measured fact.
 - **Open** — blocking for purchasing, wiring, or a firmware phase.
+- **Client drawing** — transcribed from [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md). Not a measurement of the built machine.
 
 ## 1. Product summary
 
@@ -134,9 +135,9 @@ A reboot never continues a batch. The last completed piece count may be shown as
 Timed coils are the prototype's position method. They have these product consequences:
 
 - A 5/3 closed-center valve, used on the door and the plunger, blocks its ports when both coils are off. That is a command to stop moving. It is not a lock. Air compresses, valves leak, and dough or gravity can move the piston after the timer ends.
-- The partial-open door position is stable only if a mechanical stop exists and the open timer is long enough to reach it. The piston can still creep away from that stop. **Open:** whether that stop will be fitted, and at what opening.
+- The partial-open door position is stable only if a mechanical stop exists and the open timer is long enough to reach it. The piston can still creep away from that stop. A dough trial that uses this command requires that stop. The opening distance stays **Open** unless the alignment record quotes a legible callout.
 - Plunger time does not fix stroke or dough mass. Pressure, dough consistency, cylinder size, nozzle size, back-pressure, leakage, and friction all change the result. Two equal pulses can produce different piece weights.
-- The cutter, if left as a detented 5/2 valve, stays in its last direction when power drops. An incomplete cut or a cutter left in the product will not be detected.
+- The cutter valve is a 5/2 single-solenoid spring-return. With air present, dropping the coil returns the spool toward retract. Loss of air does not prove the blade moved. There is no cutter sensor, so an incomplete cut is not detected. The client sheet shows a shutter and does not show this valve. See [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md).
 - The flattener spring returns the valve spool. It moves the cylinder only while supply air is present, and only toward the port that was plumbed as the rest position. Loss of air does not lift a tool that can fall. **Open:** whether the flattener or the door can fall.
 - Except for the door-closed switch, the screen must not say that a cylinder has arrived. It may say that a command was issued and that its timer has elapsed.
 - Piece weight is corrected by weighing samples and confirming a new pulse. The controller must not pretend the relationship is linear.
@@ -187,3 +188,4 @@ The documentation set is the current deliverable. The machine prototype is succe
 | [04-Hardware-Design.md](04-Hardware-Design.md) | Verified parts, wiring, pneumatics, and bill of materials |
 | [05-Software-Design.md](05-Software-Design.md) | State table, screens, drivers, and alarms |
 | [06-Implementation-Plan.md](06-Implementation-Plan.md) | Phases, tests, commissioning, and open decisions |
+| [07-Client-Drawing-Alignment.md](07-Client-Drawing-Alignment.md) | Client part names, geometry, mismatches, and accepted decisions |
