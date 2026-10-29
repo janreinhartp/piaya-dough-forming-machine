@@ -4,8 +4,8 @@
 | --- | --- |
 | Document | 01-Product-Requirements.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. Firmware is not started. |
-| Date | 2026-10-26 |
+| Status | Product requirements. Controller software lives in `firmware/`; board confirmation remains open. |
+| Date | 2026-10-30 |
 
 This document states what the prototype is for, who operates it, and what is inside the first build. Numeric hardware ratings and firmware structure are in the later documents. Claims that depend on a measurement or a datasheet are marked:
 

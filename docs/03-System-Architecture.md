@@ -4,8 +4,8 @@
 | --- | --- |
 | Document | 03-System-Architecture.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. Firmware is not started. |
-| Date | 2026-10-26 |
+| Status | Architecture of record. Tree below matches the current `firmware/` layout. |
+| Date | 2026-10-30 |
 
 This document describes how the prototype is divided and how the parts communicate. Behavioral limits are in [02-Technical-Requirements.md](02-Technical-Requirements.md). Pin-level wiring is in [04-Hardware-Design.md](04-Hardware-Design.md). The state table is in [05-Software-Design.md](05-Software-Design.md).
 
@@ -45,40 +45,45 @@ The safety relay removes energy without a path through the HMI. The monitor cont
 
 ## 3. Firmware components
 
-The tree below is the intended ESP-IDF layout. None of these source files exist yet. Creating them is a later phase in [06-Implementation-Plan.md](06-Implementation-Plan.md).
+The tree below matches the current project under `firmware/`. Board bring-up comes from the local Waveshare sample at `docs/demo-firmware/Demo` through `EXTRA_COMPONENT_DIRS` and an LVGL `override_path`. That sample directory is gitignored and is not copied into this repository. There is no local `components/board` or `components/alarm` directory.
 
 ```text
-piaya_dough_maker/
+firmware/
   CMakeLists.txt
   sdkconfig.defaults
   partitions.csv
   main/
     CMakeLists.txt
     app_main.c
+    idf_component.yml
   components/
-    board/
     pcf8575/
     field_io/
     machine/
-    config_store/
-    alarm/
-    hmi/
+    config_store/          # includes alarm.c / alarm.h
+    calibration/
     diagnostics/
+    runtime/
+    hmi/
   test/
+    host/
 ```
+
+Demo components linked for the panel path (not vendored): `i2c`, `gpio`, `io_extension`, `touch`, `rgb_lcd_port`, `lvgl_port`, and the sample LVGL 8.4.0 tree. The product build uses `MINIMAL_BUILD` so sample SD, Wi-Fi, and SquareLine UI are not linked.
 
 | Component | Responsibility | Depends on |
 | --- | --- | --- |
-| `board` | Display, touch, backlight, and the onboard I/O helper, taken from the Waveshare ESP-IDF demo | ESP-IDF LCD and I2C drivers |
-| `pcf8575` | Bus init, shadow, write, read, timeout, recovery, simulated backend for tests | ESP-IDF I2C, or a fake bus in host tests |
-| `field_io` | Logical names, polarity, coil exclusion, inactive image, permissives applied to outputs | `pcf8575` |
-| `machine` | States, timers, VFD run requests, pneumatic requests, batch counts | `field_io`, `config_store`, `alarm` |
-| `config_store` | Versioned recipes, machine settings, calibration, maintenance counters | NVS |
-| `alarm` | Active alarm and the 32-entry history | `config_store` for the history write, via the diagnostics queue |
-| `hmi` | LVGL screens and the keypad | `machine` status snapshot and command queue only |
-| `diagnostics` | UART logs and the only task that writes NVS after boot | `config_store` |
+| Demo panel path | Display, touch, backlight (`wavesahre_rgb_lcd_bl_on`), and the onboard helper via `IO_EXTENSION`. `app_main` calls `touch_gt911_init`, `waveshare_esp32_s3_rgb_lcd_init`, then `lvgl_port_init`. | Sample `i2c`, `gpio`, `io_extension`, `touch`, `rgb_lcd_port`, `lvgl_port` |
+| `pcf8575` | Shadow, write, read, timeout, recovery, and a fake bus for host tests | Function-pointer bus; on device, sample I2C after touch init |
+| `field_io` | Logical names, polarity, coil exclusion, inactive image, permissives applied to outputs | Bit image only; used by `machine` |
+| `machine` | States, timers, VFD run requests, pneumatic requests, batch counts | `field_io`, `config_store`, `calibration` |
+| `config_store` | Versioned recipes, machine settings, factory data, alarm codes and messages (`alarm.c`) | Designed for NVS; device boot still uses the RAM factory store |
+| `calibration` | Piece and cycle estimates, forming-pulse hint | `config_store` |
+| `runtime` | FreeRTOS I/O and machine tasks, GPIO6 watchdog kick, PCF8575 on the shared I2C bus after touch init, command post API for the HMI | `pcf8575`, `machine`, `diagnostics`, sample `i2c` |
+| `hmi` | Operator dashboard and command buttons | `runtime` snapshot and `runtime_post` only. Must not include the PCF8575 header |
+| `diagnostics` | UART notes when state, alarm, or pieces change. Intended NVS writer after boot; currently logs only | `machine` |
 
-`app_main` starts NVS, the board, the safe PCF8575 write, the tasks, and then returns. Widget code cannot include the PCF8575 header.
+`app_main` starts NVS, the panel path, `runtime_start`, and `hmi_start` when the panel came up. Widget code cannot include the PCF8575 header.
 
 The original sketch that split pneumatics, VFDs, recipes, settings, calibration, and batch into separate components is folded into `machine` and `config_store`. The behavior stays. The extra libraries do not.
 
@@ -89,9 +94,10 @@ The original sketch that split pneumatics, VFDs, recipes, settings, calibration,
 | I/O | 8 | 10 ms | 4096 bytes | The only I2C transactions to the PCF8575 |
 | Machine | 7 | 10 ms | 6144 bytes | State and the next output request |
 | LVGL | 4 | 10 ms | At least 8192 bytes, then the size that the Waveshare demo actually uses | Every LVGL call |
-| Diagnostics | 2 | event driven | 4096 bytes | Logs and NVS writes after boot |
+| HMI refresh | 4 | 100 ms | 4096 bytes | Copies machine status under the runtime lock, then updates labels under `lvgl_port_lock`. Buttons call `runtime_post` |
+| Diagnostics | 2 | event driven | 4096 bytes | Logs and, when implemented, NVS writes after boot |
 
-Priorities are initial values for bring-up. The display's RGB interrupt stays above these tasks, as configured by ESP-IDF. The task watchdog is enabled on the I/O task and the machine task. A stalled control task resets the controller, which stops the GPIO6 kick and removes field power through the watchdog relay.
+The LVGL task comes from the sample `lvgl_port`. The product HMI refresh task must not draw while holding a lock order that deadlocks with LVGL. Priorities are initial values for bring-up. The display's RGB interrupt stays above these tasks, as configured by ESP-IDF. The task watchdog is enabled on the I/O task and the machine task. A stalled control task resets the controller, which stops the GPIO6 kick and removes field power through the watchdog relay.
 
 Queues and shared data:
 

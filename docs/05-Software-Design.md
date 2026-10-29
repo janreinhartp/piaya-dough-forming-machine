@@ -4,8 +4,8 @@
 | --- | --- |
 | Document | 05-Software-Design.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. No source files are created by this document. |
-| Date | 2026-10-26 |
+| Status | Design of record. Host tests and a built ESP-IDF image exist in `firmware/`; this document still does not create sources. |
+| Date | 2026-10-30 |
 
 This is the firmware design the later phases implement. Requirements are in [02-Technical-Requirements.md](02-Technical-Requirements.md). Wiring is in [04-Hardware-Design.md](04-Hardware-Design.md). Tasks and queues are in [03-System-Architecture.md](03-System-Architecture.md).
 
@@ -74,7 +74,7 @@ Debounce counters live here, one per input, using the stored debounce time. The 
 
 ### 2.3 Board
 
-`board` is copied from the Waveshare demo after phase 1 names the helper chip. It exposes display init, touch read, and backlight set. Brightness is a percentage stored in machine settings and passed to the demo's backlight function. If that function does not exist on the board revision in hand, the HMI hides the control. No third-party PWM limit is compiled in.
+Board bring-up is currently the Waveshare Demo APIs called from `app_main` and `runtime`, not a separate `components/board` library. The path is `touch_gt911_init`, `waveshare_esp32_s3_rgb_lcd_init`, `wavesahre_rgb_lcd_bl_on`, and `lvgl_port_init`, with the helper chip driven through `IO_EXTENSION` inside that sample. Brightness as a percentage stored in machine settings and passed to a demo backlight PWM remains design intent and is not implemented. GPIO6 remains the watchdog kick; the product does not call the sample `pwm_init` LED path. If a brightness command does not exist on the board revision in hand, the HMI hides the control. No third-party PWM limit is compiled in.
 
 ## 3. State transition table
 

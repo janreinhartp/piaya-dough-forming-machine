@@ -4,8 +4,8 @@
 | --- | --- |
 | Document | 02-Technical-Requirements.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. Firmware is not started. |
-| Date | 2026-10-26 |
+| Status | Behavioral spec. Host logic and an ESP-IDF image exist; NVS blobs and full HMI screens are still open. |
+| Date | 2026-10-30 |
 
 This document is the behavioral specification for firmware and the touchscreen. Hardware ratings are in [04-Hardware-Design.md](04-Hardware-Design.md). State-by-state actions are in [05-Software-Design.md](05-Software-Design.md).
 
@@ -23,7 +23,7 @@ Factory recipes ship with `commissioned = false`. Start is refused until enginee
 | Item | Requirement | Status |
 | --- | --- | --- |
 | Controller | Waveshare ESP32-S3-Touch-LCD-7B, touch SKU 31726 | **Verified** product identity. Confirm the board in hand. |
-| Framework | ESP-IDF, CMake, C, FreeRTOS, NVS, LVGL 8.4 as used by Waveshare example `13_lvgl_v8_demo` | **Verified** that the example exists. Exact ESP-IDF patch version is **Open** until the demo archive is inspected. Expected family 5.5.x. |
+| Framework | ESP-IDF, CMake, C, FreeRTOS, NVS, LVGL 8.4.0 from the local Waveshare sample at `docs/demo-firmware/Demo` (CMake project name `16_LVGL_UI`; panel 1024 × 600) | **Verified** that the sample tree provides LVGL 8.4.0. This PC builds the product image with ESP-IDF 5.5.4. The sample component manifest accepts IDF `>=5.1.0`. The Waveshare-required patch for the board in hand stays **Open** until that board is confirmed. |
 | Tooling | VS Code with the Espressif ESP-IDF extension | **Recommendation** |
 | Language | C for drivers, sequencing, storage, and the HMI | **Recommendation**. Application C++ is excluded. |
 | Display | 1024 × 600 landscape, capacitive touch | **Verified** panel size. Mounting rotation is **Open**. |
@@ -31,7 +31,7 @@ Factory recipes ship with `commissioned = false`. Start is refused until enginee
 | Persistence | ESP-IDF NVS, versioned blobs | **Verified** that NVS is the ESP-IDF store |
 | Networking | Radios off. No Modbus, no speed reference, no encoder | Requirement |
 
-The official demo archive is the firmware starting point. LVGL 9, shipped in a different Waveshare example, is not mixed into this project.
+The local sample at `docs/demo-firmware/Demo` is the board bring-up starting point for LCD, touch, I2C, the onboard helper, and the LVGL port. That directory is gitignored and must be present for `idf.py build`. The product does not link the sample Wi-Fi, SD, SquareLine UI, or GPIO6 LED PWM. LVGL 9, shipped in a different Waveshare example, is not mixed into this project.
 
 ## 2. Permissives
 

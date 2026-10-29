@@ -4,8 +4,8 @@
 | --- | --- |
 | Document | 04-Hardware-Design.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. Not a build package until the Open items in section 2 are closed. |
-| Date | 2026-10-26 |
+| Status | Planning baseline. Not a build package until the Open items in section 2 are closed. Phase 1 confirmation is still open. |
+| Date | 2026-10-30 |
 
 Labels:
 

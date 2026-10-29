@@ -4,10 +4,10 @@
 | --- | --- |
 | Document | 06-Implementation-Plan.md |
 | Product | Piaya Dough Maker prototype |
-| Status | Planning baseline. Phases below are not started. |
-| Date | 2026-10-26 |
+| Status | Phases partially started. Phase 1 still blocks purchase and wiring. See the progress notes under each phase and the repository README. |
+| Date | 2026-10-30 |
 
-Do not start a phase until the previous phase's acceptance line is recorded. Firmware files are not part of this documentation pass.
+Do not mark a phase accepted until its acceptance line is recorded. Controller sources live in `firmware/`. The local Waveshare sample at `docs/demo-firmware/Demo` is required for the device build and is gitignored.
 
 The design of record is:
 
@@ -36,6 +36,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** Blanks in section 5.1 still block purchase and wiring of those items. |
 | Deliverable | A confirmation sheet that names the board revision, the helper-chip marking, the demo source file that drives it, both VFD manuals, cylinder bore, stroke, orientation, and load, coil voltage and current, air pressure, which axes can fall, the partial-open stop if any, and a guarding sketch. |
 | Depends on | The documents above, the Waveshare demo zip, the schematic PDF, and the physical machine. |
 | Test | Compare the sheet with the chip marks and the manuals. Every **Open** item in [04-Hardware-Design.md](04-Hardware-Design.md) section 2 is either filled or still marked blocking. |
@@ -46,7 +47,8 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
-| Deliverable | An ESP-IDF project copied from the official demo, with the toolchain version pinned to the version that demo requires, `sdkconfig.defaults` taken from the Waveshare list in the hardware document, a partition table that includes 64 KB NVS, and a boot log. No machine logic. |
+| Progress | **Partial.** `firmware/` builds as `piaya_dough_maker` with Waveshare clocks, a 64 KB NVS partition, and LVGL 8.4 from `docs/demo-firmware/Demo`. No USB-UART boot log has been recorded. |
+| Deliverable | An ESP-IDF project that links the official demo for board bring-up, with the toolchain version pinned to the version that demo requires, `sdkconfig.defaults` taken from the Waveshare list in the hardware document, a partition table that includes 64 KB NVS, and a boot log. |
 | Depends on | Phase 1's identification of the demo directory and ESP-IDF version. |
 | Test | `idf.py build` succeeds. The board prints a boot log over the USB-UART port. |
 | Acceptance | Build is repeatable on a clean tree. Arduino and PlatformIO are not the build system. LVGL 8.4 is the UI library if the v8 demo is the base. LVGL 9 is not mixed in. |
@@ -56,6 +58,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Partial in software.** The panel path is linked from the Demo (`touch_gt911_init`, RGB LCD, backlight, `lvgl_port_init`). Not soaked on the board. |
 | Deliverable | The official LCD and touch examples running on this board, then a note of the pixel clock and the helper-chip calls that phase 2's tree will keep. |
 | Depends on | Phase 2. |
 | Test | Color bars or the LVGL demo are visible. Five-point touch, or as many points as the demo draws, lands under the finger. Leave the panel running for 30 minutes. |
@@ -66,6 +69,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Partial.** Host tests under `firmware/test/host/` pass. No on-board bus scan yet. |
 | Deliverable | `components/pcf8575` and host tests for the cases in [05-Software-Design.md](05-Software-Design.md) section 2.1. Then a bus scan on the real header. |
 | Depends on | Phase 2. The scan also depends on a module whose schematic has been checked for 3.3 V and address `0x20`. |
 | Test | Host tests pass. On the board, with 24 V field power off, a scan shows `0x24`, `0x5D`, and `0x20`, and does not show a second device at `0x24`. |
@@ -76,6 +80,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | One opto input and one opto output wired as in the hardware document, plus the series GPIO6 watchdog contact. Its part number and timeout stay blank. |
 | Depends on | Phase 4 and reviewed module schematics. |
 | Test | Power the expander. Confirm the load stays off. Command the output active and inactive. Open the input wire and confirm the fail-safe reading for that channel. Remove the GPIO6 kick, if fitted, and confirm field power drops. |
@@ -86,6 +91,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Partial.** Host tests for software design section 10 pass. Not proven on real field I/O. |
 | Deliverable | `components/machine` and `components/field_io` against a fake expander. Host tests from software design section 10 pass. |
 | Depends on | Phase 4's fake bus. Does not need the panel. |
 | Test | Run the host tests. Inspect a trace of transfer and forming order. |
@@ -96,6 +102,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Partial.** Partition table has 64 KB NVS. RAM `config_store` and factory data exist. Versioned NVS blobs are not written on the device yet. |
 | Deliverable | `components/config_store` with versioned blobs, factory data, commissioned flag, and alarm-ring storage. |
 | Depends on | Phase 2 partition table and phase 6 snapshot structure. |
 | Test | Save a recipe, reboot, read it back. Corrupt the blob, reboot, and confirm factory data, `NVS_CORRUPT`, and commissioned clear. Reject an out-of-range value without replacing the previous save. |
@@ -106,6 +113,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Partial.** Operator dashboard with state, alarm, pieces, banner, and Start, Stop, Reset, Barrel, and Ack. Remaining screens are listed in the repository README. |
 | Deliverable | The screens in software design section 5. Commands travel only on the queue. |
 | Depends on | Phases 3, 6, and 7. |
 | Test | Edit a time, cancel, and confirm the stored value is unchanged. Apply a legal value and an illegal value. Open manual mode and confirm the widget source does not call the expander. |
@@ -116,6 +124,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | Two dry-contact run circuits wired to the terminals named in the phase 1 manuals. Drive parameters set so power return does not start the motor. |
 | Depends on | Phase 1 manuals and phase 5 drivers. |
 | Test | Jog each run contact from maintenance. Remove the contact and confirm the drive stops on its programmed ramp or coast. Cycle mains and confirm the motor stays stopped. |
@@ -126,6 +135,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | Each valve plumbed and stroked at low pressure, with coil cross-interlocks fitted. |
 | Depends on | Phases 5 and 9's supply wiring, plus cylinder data from phase 1. Valve flow may still be a temporary orifice if sizing is unfinished. Record that. |
 | Test | Door open, center, close, and prove the closed switch. Plunger extend, center, retract. Cutter both directions. Flattener down and up. Try to energize both coils of a pair and confirm the hardware interlock prevents it. |
@@ -136,6 +146,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | The mix and transfer states on the machine, with guards in place before the agitator runs with the door open. |
 | Depends on | Phases 8 and 10, and the guarding sketch from phase 1 built in hardware. |
 | Test | Run mix with the door switch forced open and confirm `DOOR_OPEN_DURING_MIX`. Run the transfer order. Confirm the machine waits at barrel-ready and does not enter forming alone. |
@@ -146,6 +157,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | Forming cycle, piece count, and the scale workflow. |
 | Depends on | Phase 11. |
 | Test | One cycle. Confirm the count increases only after the up timer. Stop during the up timer and confirm the count does not increase. Weigh a sample, enter it, cancel, and confirm the pulse is unchanged. Confirm, reboot, and confirm the pulse was stored. |
@@ -156,6 +168,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | A filled fault-injection record for the rows below. |
 | Depends on | Phase 12 on the bench. A full dough batch is not required for these tests. |
 | Test | Unplug I2C during a commanded output. Press emergency stop while the controller is held in reset and confirm energy is gone. Open the air switch. Press STOP mid-stroke. Reboot mid-cycle. Request maintenance during a batch. |
@@ -166,6 +179,7 @@ A failed acceptance stops the sequence. Fix the cause and repeat that phase's te
 
 | | |
 | --- | --- |
+| Progress | **Open.** |
 | Deliverable | One recorded batch attempt at the real charge, with the times that replace factory placeholders, and commissioned set only after those times are saved. |
 | Depends on | Phase 13 passed. |
 | Test | Run the product sequence with an operator at barrel-ready. Record actual command times, piece weights, faults, and anything the timers did not hold. |
@@ -227,7 +241,7 @@ These readings are accepted. The client sheets do not show them. Detail is in [0
 11. Fixed guards are required before a transfer mix with the door switch clear.
 12. A partial-open dough trial requires a mechanical stop. The distance stays blank unless document 07 quotes a callout.
 13. An axis that a mechanical review says can fall needs a restraint before operation. This plan does not assert which axes fall.
-14. Firmware remains a separate approval. The alignment revision creates no firmware.
+14. The alignment revision created the control documents only. Controller sources now live in `firmware/` and are tracked separately from the Phase 1 blanks that still block wiring.
 
 ## 5.1 Facts still blank
 

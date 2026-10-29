@@ -43,6 +43,10 @@ Confirm the board in hand before ordering interface parts. The non-touch SKU 317
 
 Arduino and PlatformIO are not the project framework. Wi-Fi, Bluetooth, Modbus, and cloud services are out of scope.
 
+### Waveshare sample
+
+The product links the local sample at `docs/demo-firmware/Demo` for LCD, touch, I2C, the onboard helper through `IO_EXTENSION`, and the LVGL port. That directory stays gitignored and must be present for `idf.py build`. The sample Wi-Fi, SD, SquareLine UI, and `pwm_init` (GPIO6 LED) are not linked. GPIO6 in the product is the watchdog kick only.
+
 From `firmware`, after the ESP-IDF export script:
 
 ```powershell
